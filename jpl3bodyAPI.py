@@ -9,10 +9,11 @@ import argparse
 import numpy as np
 from scipy.integrate import solve_ivp
 import plotly.graph_objects as go
-import plotly.offline as pyo
 import plotly.io as pio
+pio.templates.default = "plotly_dark"
+pio.renderers.default = "browser"
 
-def queryJPL(sys="earth-moon", family="halo", libr="2", branch="N", periodmin="", periodmax="", periodunit="", jacobimin="", jacobimax="", stabmin="", stabmax=""):
+def queryJPL(sys="earth-moon", family="halo", libr="2", branch="N", periodmin="", periodmax="", periodunits="", jacobimin="", jacobimax="", stabmin="", stabmax=""):
     """
     Get information from the JPL Horizons periodic 3-body orbits API.
 
@@ -23,7 +24,7 @@ def queryJPL(sys="earth-moon", family="halo", libr="2", branch="N", periodmin=""
         branch (str): branch of orbits within the family: N/S for halo,dragonfly,butterfly, E/W for lpo, and pq integer sequence for resonant (e.g., 12 for 1:2).
         periodmin (str): minimum period (inclusive). Units defined by periodunits.
         periodmax (str): maximum period (inclusive). Units defined by periodunits.
-        periodunit (str): units of pmin and pmax: s for seconds, h for hours, d for days, TU for nondimensional.
+        periodunits (str): units of pmin and pmax: s for seconds, h for hours, d for days, TU for nondimensional.
         jacobimin (str): minimum Jacobi constant (inclusive). Nondimensional units.
         jacobimax (str): maximum Jacobi constant (inclusive). Nondimensional units.
         stabmin (str): minimum stability index (inclusive).
@@ -62,25 +63,34 @@ def parseData(data):
 
 
     Returns:
-        primary (str): name of the primary body
-        secondary (str): name of the secondary body
-        mu (float): mass parameter of the system
-        lpoints (list. float): list of lagrange point positions
+        sysDict (dict): dictionary of system data 
+            primary (str): primary body
+            secondary (str): secondary body
+            family (str): family of orbits
+            mu (float): mass parameter of the system
+            lpoints (list, float): list of libration point locations
         ics (list, float): list of initial conditions
     """
     data = json.loads(data)
 
+    # Get the System Information
     system = data['system']['name']
     primary, secondary = system.split('-')
+    fam = data['family']
+    libpoint = data['libration_point']
     mu = float(data['system']['mass_ratio'])
-    
+
     # Get the Lagrange Points
     lpoints = [data['system']['L{}'.format(i)] for i in range(1,6)]
+    lpoints = [list(map(float, pos)) for pos in lpoints]
+
+    # Build Dict of system information
+    sysDict = {'prim': primary, 'sec': secondary,'fam': fam, 'libpoint': libpoint,'mu': mu, 'lpoints': lpoints}
 
     # Get the initial conditions of the orbits.
     initial_conditions = data['data']
     ics = [list(map(float, ic)) for ic in initial_conditions]
-    sysDict = {'prim': primary, 'sec': secondary, 'mu': mu, 'lpoints': lpoints}
+
     return sysDict, ics
 
 def cr3bp_ode(y_, t, mu):
@@ -98,7 +108,6 @@ def cr3bp_ode(y_, t, mu):
     vy = y_[4]
     vz = y_[5]
 
-    # Eq. of Motion
     d = np.sqrt((x + mu) ** 2 + y ** 2 + z ** 2)
     r = np.sqrt((x + mu - 1) ** 2 + y ** 2 + z ** 2)
 
@@ -107,7 +116,7 @@ def cr3bp_ode(y_, t, mu):
     yd_[1] = y_[4]
     yd_[2] = y_[5]
 
-    # Acceleration
+    # Eq. of Motion
     yd_[3] = -(1 - mu) * (x + mu) / (d ** 3) - mu * (x - 1 + mu) / (r ** 3) + 2 * vy + x
     yd_[4] = -(1 - mu) * y / (d ** 3) - mu * y / (r ** 3) - 2 * vx + y
     yd_[5] = -(1 - mu) * z / (d ** 3) - mu * z / (r ** 3)
@@ -121,7 +130,7 @@ def propagate(mu, ics, n=5):
     Args:
         mu (float): mass parameter of the system
         ics (list, float): list of initial conditions
-        n (int): Takes every nth initial condition to reduce computational time
+        n (int): Propagates every nth initial condition to reduce computational time
 
     Returns:
         trajList (list): list of propagated trajectories
@@ -133,22 +142,23 @@ def propagate(mu, ics, n=5):
     ODE = lambda t, y_: cr3bp_ode(y_, t, mu)
     for ic in ics:
         # Initial Conditions
-        y0 = np.array([ic[0], ic[1], ic[2], ic[3], ic[4], ic[5]])
+        y0 = np.array(ic[:6])
         # Time
         tspan = [0, ic[7]]
+        t = np.linspace(tspan[0], tspan[1], 500)
         # Solve ODE
-        sol = solve_ivp(ODE, tspan, y0, method='DOP853', atol=1e-12, rtol=1e-12)
+        sol = solve_ivp(ODE, tspan, y0, method='DOP853', atol=1e-12, rtol=1e-12, t_eval=t)
         # Append to trajectory list
         trajList.append(sol.y)
 
     return trajList
 
-def plotTrajs(sysDict, trajList, name='plot'):
+def plotTrajs(sysDict, trajList, savefig=False):
     """
     Plots a family of periodic orbits.
     """
     data = []
-    layout = go.Layout(showlegend=True)
+    layout = go.Layout(showlegend=True, scene_aspectmode='data')
     for traj in trajList:
         data.append(
             go.Scatter3d(
@@ -159,31 +169,19 @@ def plotTrajs(sysDict, trajList, name='plot'):
                 showlegend=False,
             )
         )
+    # for lpoint in sysDict['lpoints']:
+    #     data.append(
+    #         go.Scatter3d(
+    #             x=[lpoint[0]],
+    #             y=[lpoint[1]],
+    #             z=[lpoint[2]],
+    #             mode='markers',
+    #             marker=dict(size=2, color='lightblue'),
+    #             showlegend=False,
+    #         )
+    #     )
     fig = go.Figure(data=data, layout=layout)
-    fig.update_layout(scene_aspectmode='data')
+    if savefig:
+        fig.write_html('./{}-{}_{}{}.html'.format(sysDict['prim'], sysDict['sec'], sysDict['libpoint'], sysDict['fam']))
     fig.show()
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--sys", type=str, default="earth-moon", help="three-body system defined in lower-case as “primary-secondary,” e.g. earth-moon, mars-phobos, sun-earth.")
-    parser.add_argument("--family", type=str, default="halo", help="name of the orbit family: halo,vertical,axial,lyapunov,longp,short,butterfly,dragonfly,resonant,dro,dpo,lpo")
-    parser.add_argument("--libr", type=str, default="2", help="libration point. Required for lyapunov,halo (1,2,3), longp, short (4,5), and axial,vertical (1,2,3,4,5).")
-    parser.add_argument("--branch", type=str, default="N", help="branch of orbits within the family: N/S for halo,dragonfly,butterfly, E/W for lpo, and pq integer sequence for resonant (e.g., 12 for 1:2).")
-    parser.add_argument("--periodmin", type=str, default="", help="minimum period (inclusive). Units defined by periodunits.")
-    parser.add_argument("--periodmax", type=str, default="", help="maximum period (inclusive). Units defined by periodunits.")
-    parser.add_argument("--periodunit", type=str, default="", help="units of pmin and pmax: s for seconds, h for hours, d for days, TU for nondimensional.")
-    parser.add_argument("--jacobimin", type=str, default="", help="minimum Jacobi constant (inclusive). Nondimensional units.")
-    parser.add_argument("--jacobimax", type=str, default="", help="maximum Jacobi constant (inclusive). Nondimensional units.")
-    parser.add_argument("--stabmin", type=str, default="", help="minimum stability index (inclusive).")
-    parser.add_argument("--stabmax", type=str, default="", help="maximum stability index (inclusive).")
-
-
-    args = parser.parse_args()
-
-    data = queryJPL(**vars(args))
-    sysDict, ics = parseData(data)
-    mu = sysDict['mu']
-
-    trajList = propagate(mu, ics, n=10)
-    plotTrajs(sysDict, trajList)
+    
