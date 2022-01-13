@@ -187,10 +187,10 @@ def plotTrajs(sys, trajList, plot_lpoints=False, plot_prim=False, plot_sec=False
                 x=[-mu],
                 y=[0.0],
                 z=[0.0],
-                mode = 'markers',
-                marker = dict(size=20),
+                mode='markers',
+                marker=dict(size=20),
                 showlegend=True,
-                name = prim,
+                name=prim,
             )
         )
     if plot_sec:
@@ -200,7 +200,7 @@ def plotTrajs(sys, trajList, plot_lpoints=False, plot_prim=False, plot_sec=False
                 x=[1-mu],
                 y=[0.0],
                 z=[0.0],
-                mode = 'markers',
+                mode='markers',
                 marker=dict(size=10),
                 showlegend=True,
                 name=sec,
