@@ -184,9 +184,9 @@ def plotTrajs(sys, trajList, plot_lpoints=False, plot_prim=False, plot_sec=False
         prim = sys.primary()
         data.append(
             go.Scatter3d(
-                x = [-mu],
-                y = [0.0],
-                z = [0.0],
+                x=[-mu],
+                y=[0.0],
+                z=[0.0],
                 mode = 'markers',
                 marker = dict(size=20),
                 showlegend=True,
@@ -197,9 +197,9 @@ def plotTrajs(sys, trajList, plot_lpoints=False, plot_prim=False, plot_sec=False
         sec = sys.secondary()
         data.append(
             go.Scatter3d(
-                x = [1-mu],
-                y = [0.0],
-                z = [0.0],
+                x=[1-mu],
+                y=[0.0],
+                z=[0.0],
                 mode = 'markers',
                 marker=dict(size=10),
                 showlegend=True,
