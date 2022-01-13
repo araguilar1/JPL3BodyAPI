@@ -5,7 +5,6 @@ Script to query JPL Horizons for the initial conditions of periodic 3-body orbit
 """
 import requests
 import json
-import argparse
 import numpy as np
 from scipy.integrate import solve_ivp
 import plotly.graph_objects as go
@@ -54,44 +53,40 @@ def queryJPL(sys="earth-moon", family="halo", libr="2", branch="N", periodmin=""
     else:
         return data
 
-def parseData(data):
+
+class system:
     """
-    Parses the JSON data returned by queryJPL functions
-
-    Args:
-        json: json struct returned by queryJPLY
-
-
-    Returns:
-        sysDict (dict): dictionary of system data 
-            primary (str): primary body
-            secondary (str): secondary body
-            family (str): family of orbits
-            mu (float): mass parameter of the system
-            lpoints (list, float): list of libration point locations
-        ics (list, float): list of initial conditions
+    Class to store the information from the JPL Horizons periodic 3-body orbits API return.
     """
-    data = json.loads(data)
 
-    # Get the System Information
-    system = data['system']['name']
-    primary, secondary = system.split('-')
-    fam = data['family']
-    libpoint = data['libration_point']
-    mu = float(data['system']['mass_ratio'])
+    def __init__(self, inData):
+        self.data = json.loads(inData)
 
-    # Get the Lagrange Points
-    lpoints = [data['system']['L{}'.format(i)] for i in range(1,6)]
-    lpoints = [list(map(float, pos)) for pos in lpoints]
+    def sys(self):
+        return self.data['system']['name']
 
-    # Build Dict of system information
-    sysDict = {'prim': primary, 'sec': secondary,'fam': fam, 'libpoint': libpoint,'mu': mu, 'lpoints': lpoints}
+    def primary(self):
+        return self.data['system']['name'].split('-')[0]
 
-    # Get the initial conditions of the orbits.
-    initial_conditions = data['data']
-    ics = [list(map(float, ic)) for ic in initial_conditions]
+    def secondary(self):
+        return self.data['system']['name'].split('-')[1]
 
-    return sysDict, ics
+    def family(self):
+        return self.data['family']
+
+    def libpoint(self):
+        return self.data['libration_point']
+
+    def mu(self):
+        return float(self.data['system']['mass_ratio'])
+
+    def lpoints(self):
+        lpoints = [self.data['system']['L{}'.format(i)] for i in range(1,6)]
+        return [list(map(float, pos)) for pos in lpoints]
+
+    def ics(self):
+        initial_conditions = self.data['data']
+        return [list(map(float, ic)) for ic in initial_conditions]
 
 def cr3bp_ode(y_, t, mu):
     """
@@ -123,7 +118,7 @@ def cr3bp_ode(y_, t, mu):
 
     return yd_
 
-def propagate(mu, ics, n=5):
+def propagate(mu, ics=[], n=5):
     """
     Propagates the periodic orbits from the JPL query
 
@@ -153,7 +148,7 @@ def propagate(mu, ics, n=5):
 
     return trajList
 
-def plotTrajs(sysDict, trajList, savefig=False):
+def plotTrajs(sys, trajList, savefig=False):
     """
     Plots a family of periodic orbits.
     """
@@ -182,6 +177,6 @@ def plotTrajs(sysDict, trajList, savefig=False):
     #     )
     fig = go.Figure(data=data, layout=layout)
     if savefig:
-        fig.write_html('./{}-{}_{}{}.html'.format(sysDict['prim'], sysDict['sec'], sysDict['libpoint'], sysDict['fam']))
+        fig.write_html('./{}-{}_{}{}.html'.format(sys.primary(), sys.secondary(), sys.libpoint(), sys.family()))
     fig.show()
     

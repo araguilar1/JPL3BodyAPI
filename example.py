@@ -1,5 +1,5 @@
 from jpl3bodyAPI import *
-
+import argparse 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--sys", type=str, default="earth-moon", help="three-body system defined in lower-case as “primary-secondary,” e.g. earth-moon, mars-phobos, sun-earth.")
@@ -18,11 +18,9 @@ def main():
     args = parser.parse_args()
 
     data = queryJPL(**vars(args))
-    sysDict, ics = parseData(data)
-    mu = sysDict['mu']
-
-    trajList = propagate(mu, ics, n=10)
-    plotTrajs(sysDict, trajList, savefig=False)
+    tbpSys = system(data)
+    trajList = propagate(tbpSys.mu(), tbpSys.ics(), n=10)
+    plotTrajs(tbpSys, trajList, savefig=False)
 
 if __name__=='__main__':
     main()
