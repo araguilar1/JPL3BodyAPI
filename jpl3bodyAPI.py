@@ -3,6 +3,7 @@
 Script to query JPL Horizons for the initial conditions of periodic 3-body orbits, their families, and other data.
 
 """
+from re import M
 import requests
 import json
 import numpy as np
@@ -11,6 +12,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 pio.templates.default = "plotly_dark"
 pio.renderers.default = "browser"
+import plotly.express as px
 
 def queryJPL(sys="earth-moon", family="halo", libr="2", branch="N", periodmin="", periodmax="", periodunits="", jacobimin="", jacobimax="", stabmin="", stabmax=""):
     """
@@ -148,10 +150,11 @@ def propagate(mu, ics=[], n=5):
 
     return trajList
 
-def plotTrajs(sys, trajList, savefig=False):
+def plotTrajs(sys, trajList, plot_lpoints=False, plot_prim=False, plot_sec=False, savefig=False):
     """
     Plots a family of periodic orbits.
     """
+    mu = sys.mu()
     data = []
     layout = go.Layout(showlegend=True, scene_aspectmode='data')
     for traj in trajList:
@@ -164,17 +167,45 @@ def plotTrajs(sys, trajList, savefig=False):
                 showlegend=False,
             )
         )
-    # for lpoint in sysDict['lpoints']:
-    #     data.append(
-    #         go.Scatter3d(
-    #             x=[lpoint[0]],
-    #             y=[lpoint[1]],
-    #             z=[lpoint[2]],
-    #             mode='markers',
-    #             marker=dict(size=2, color='lightblue'),
-    #             showlegend=False,
-    #         )
-    #     )
+    if plot_lpoints:
+        for i, lpoint in enumerate(sys.lpoints()):
+            data.append(
+                go.Scatter3d(
+                    x=[lpoint[0]],
+                    y=[lpoint[1]],
+                    z=[lpoint[2]],
+                    mode='markers',
+                    marker=dict(size=4),
+                    showlegend=True,
+                    name='L{}'.format(i+1),
+                )
+            )
+    if plot_prim:
+        prim = sys.primary()
+        data.append(
+            go.Scatter3d(
+                x = [-mu],
+                y = [0.0],
+                z = [0.0],
+                mode = 'markers',
+                marker = dict(size=20),
+                showlegend=True,
+                name = prim,
+            )
+        )
+    if plot_sec:
+        sec = sys.secondary()
+        data.append(
+            go.Scatter3d(
+                x = [1-mu],
+                y = [0.0],
+                z = [0.0],
+                mode = 'markers',
+                marker=dict(size=10),
+                showlegend=True,
+                name=sec,
+            )
+        )
     fig = go.Figure(data=data, layout=layout)
     if savefig:
         fig.write_html('./{}-{}_{}{}.html'.format(sys.primary(), sys.secondary(), sys.libpoint(), sys.family()))

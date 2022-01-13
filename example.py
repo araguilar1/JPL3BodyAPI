@@ -20,7 +20,7 @@ def main():
     data = queryJPL(**vars(args))
     tbpSys = system(data)
     trajList = propagate(tbpSys.mu(), tbpSys.ics(), n=10)
-    plotTrajs(tbpSys, trajList, savefig=False)
+    plotTrajs(tbpSys, trajList, plot_lpoints=False, plot_sec=False, plot_prim=False, savefig=False)
 
 if __name__=='__main__':
     main()
