@@ -1,9 +1,8 @@
-
 """
 Script to query JPL Horizons for the initial conditions of periodic 3-body orbits, their families, and other data.
 
 """
-from re import M
+
 import requests
 import json
 import numpy as np
@@ -211,3 +210,26 @@ def plotTrajs(sys, trajList, plot_lpoints=False, plot_prim=False, plot_sec=False
         fig.write_html('./{}-{}_{}{}.html'.format(sys.primary(), sys.secondary(), sys.libpoint(), sys.family()))
     fig.show()
     
+
+def catalog(Primaries="earth-moon"):
+    """
+    Plots catalog of 3 body periodic orbits
+
+    """
+
+    # Get trajectories from JPL horizon
+    L1_lyapunov = system(queryJPL(sys=Primaries, family="lyapunov", libr="1", branch=""))
+    L2_lyapunov = system(queryJPL(sys=Primaries, family="lyapunov", libr="2", branch=""))
+    L3_lyapunov = system(queryJPL(sys=Primaries, family="lyapunov", libr="3", branch=""))
+
+    # L1_halo = system(queryJPL(sys=Primaries, family="halo", libr="1", branch="S"))
+    L2_halo = system(queryJPL(sys=Primaries, family="halo", libr="2", branch="S"))
+
+    allICs = []
+    allICs += L1_lyapunov.ics()
+    allICs += L2_lyapunov.ics()
+    allICs += L2_halo.ics()
+    allICs += L3_lyapunov.ics()
+
+    bigTraj = propagate(mu=L1_lyapunov.mu(), ics=allICs, n=150)
+    plotTrajs(L1_lyapunov, bigTraj, plot_lpoints=True, plot_prim=True, plot_sec=True, savefig=False)
