@@ -23,7 +23,7 @@ def main():
     trajList = propagate(tbpSys.mu(), tbpSys.ics(), n=25)
     plotTrajs(tbpSys, trajList, plot_lpoints=False, plot_sec=True, plot_prim=False, savefig=False)
 
-    allICS = catalog("earth-moon")
+    catalog("earth-moon") #TODO: update this function
 
 if __name__=='__main__':
     main()

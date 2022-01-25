@@ -215,6 +215,7 @@ def catalog(Primaries="earth-moon"):
     """
     Plots catalog of 3 body periodic orbits
 
+    TODO: This needs quite a bit of work.
     """
 
     # Get trajectories from JPL horizon
