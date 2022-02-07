@@ -89,42 +89,37 @@ class system:
         initial_conditions = self.data['data']
         return [list(map(float, ic)) for ic in initial_conditions]
 
-def cr3bp_ode(y_, t, mu):
+def cr3bp_ode(ndx, t, mu):
     """
     CR3BP EOMs
     """
-    yd_ = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     # Position
-    x = y_[0]
-    y = y_[1]
-    z = y_[2]
+    x = ndx[0]
+    y = ndx[1]
+    z = ndx[2]
+    
     # Velocity
-    vx = y_[3]
-    vy = y_[4]
-    vz = y_[5]
+    vx = ndx[3]
+    vy = ndx[4]
+    vz = ndx[5]
 
     d = np.sqrt((x + mu) ** 2 + y ** 2 + z ** 2)
     r = np.sqrt((x + mu - 1) ** 2 + y ** 2 + z ** 2)
 
-    # Velocity
-    yd_[0] = y_[3]
-    yd_[1] = y_[4]
-    yd_[2] = y_[5]
+    # Acceleration
+    ax = -(1 - mu) * (x + mu) / (d ** 3) - mu * (x - 1 + mu) / (r ** 3) + 2 * vy + x
+    ay = -(1 - mu) * y / (d ** 3) - mu * y / (r ** 3) - 2 * vx + y
+    az = -(1 - mu) * z / (d ** 3) - mu * z / (r ** 3)
 
-    # Eq. of Motion
-    yd_[3] = -(1 - mu) * (x + mu) / (d ** 3) - mu * (x - 1 + mu) / (r ** 3) + 2 * vy + x
-    yd_[4] = -(1 - mu) * y / (d ** 3) - mu * y / (r ** 3) - 2 * vx + y
-    yd_[5] = -(1 - mu) * z / (d ** 3) - mu * z / (r ** 3)
-
-    return yd_
+    return np.array([vx, vy, vz, ax, ay, az])
 
 def propagate(mu, ics=[], n=5):
     """
     Propagates the periodic orbits from the JPL query
 
     Args:
-        mu (float): mass parameter of the system
+        mu (float): mass ratio of the system
         ics (list, float): list of initial conditions
         n (int): Propagates every nth initial condition to reduce computational time
 
